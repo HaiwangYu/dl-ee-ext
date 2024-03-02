@@ -185,10 +185,10 @@ void muon_energy(
     nentries = 10000;
     for (int ientry = 0; ientry < nentries; ++ientry) {
         T_PFDump->GetEntry(ientry);
+        if (ientry % 1000 == 0) cout << "processing: " << (double)ientry / nentries * 100 << "%" << endl;
         counters["all"]++;
 
         // event selection
-        if (ientry % 1000 == 0) cout << "processing: " << (double)ientry / nentries * 100 << "%" << endl;
         if (numu_cc_flag < 0 || stm_clusterlength < 15) continue;  // generic nu selection
         if (!truth_isCC) continue;
         if (truth_isFC!=true) continue; // FV cut

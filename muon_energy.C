@@ -176,37 +176,30 @@ void muon_energy(
     T_PFDump->SetBranchAddress("kine_particle_type", &kine_particle_type);
     T_PFDump->SetBranchAddress("kine_reco_Enu", &kine_reco_Enu);
 
-    TH1F *h_ndaughter_truth = new TH1F("h_ndaughter_truth", "h_ndaughter_truth", 100, -0.5, 99.5);
-    TH1F *h_ndaughter_reco = new TH1F("h_ndaughter_reco", "h_ndaughter_reco", 100, -0.5, 99.5);
+    TH1F *h_l_rel_diff = new TH1F("h_l_rel_diff", "h_l_rel_diff", 100, -1, 1);
+    TH2F *h_nu_diff_vs_nu_rec = new TH2F("h_diff_v_rec", "h_diff_v_rec", 100, 0, 5, 100, -5, 5);
+    TH2F *h_nu_diff_vs_l_diff = new TH2F("h_diff_v_l_diff", "h_diff_v_l_diff", 100, 0, 5, 100, 0, 5);
 
-    TH1F *h_reco_m_truth = new TH1F("h_reco_m_truth", "h_reco_m_truth", 100, -1, 1);
-
-    // TH2F *h_reco_v_truth = new TH2F("h_reco_v_truth", "h_reco_v_truth", 100, 0, 2, 100, 0, 2); // energy
-    TH2F *h_reco_v_truth = new TH2F("h_reco_v_truth", "h_reco_v_truth", 20, 0, 2, 40, 0, 2); // energy bias
-    // TH2F *h_reco_v_truth = new TH2F("h_reco_v_truth", "h_reco_v_truth", 20, 0, 3, 100, -TMath::Pi(), TMath::Pi()); //
-    // TH2F *h_reco_v_truth = new TH2F("h_reco_v_truth", "h_reco_v_truth", 10, 0, 3, 100, -3, 3);  // angle
-    // TH2F *h_reco_v_truth = new TH2F("h_reco_v_truth", "h_reco_v_truth", 20, 0, 3, 100, -1, 1);  // tmp
-
-    TH1F *h_truth_e_all = new TH1F("h_truth_e_all", "h_truth_e_all", 60, 0, 3);
-    TH1F *h_truth_e_match = new TH1F("h_truth_e_match", "h_truth_e_match", 60, 0, 3);
-
-    TH2F *h_dtheta_theta =
-        new TH2F("h_dtheta_theta", "h_dtheta_theta", 200, -TMath::Pi(), TMath::Pi(), 200, -TMath::Pi(), TMath::Pi());
-
-    int counter_all = 0;
-    int counter_pass = 0;
-    for (int ientry = 0; ientry < T_PFDump->GetEntries(); ++ientry) {
-    // for (int ientry = 0; ientry < 10000; ++ientry) {
+    std::map<std::string, int> counters;
+    int nentries = T_PFDump->GetEntries();
+    nentries = 10000;
+    for (int ientry = 0; ientry < nentries; ++ientry) {
         T_PFDump->GetEntry(ientry);
-        if (ientry % 1000 == 0) cout << "processing: " << ientry / 10000. * 100 << "%" << endl;
+        counters["all"]++;
+
+        // event selection
+        if (ientry % 1000 == 0) cout << "processing: " << (double)ientry / nentries * 100 << "%" << endl;
         if (numu_cc_flag < 0 || stm_clusterlength < 15) continue;  // generic nu selection
         if (!truth_isCC) continue;
         if (truth_isFC!=true) continue; // FV cut
         // if (!is_in_fv(truth_corr_nuvtxX, truth_corr_nuvtxY, truth_corr_nuvtxZ)) continue; // alternative FV
+        counters["event"]++;
 
+        // vertex selection
         TVector3 truth_nuvtx(truth_corr_nuvtxX, truth_corr_nuvtxY, truth_corr_nuvtxZ);
         TVector3 reco_nuvtx(reco_nuvtxX, reco_nuvtxY, reco_nuvtxZ);
         if ((reco_nuvtx - truth_nuvtx).Mag() > 1.0) continue;
+        counters["vertex"]++;
 
         TLorentzVector target_pos_start_truth;
         TLorentzVector target_pos_end_truth;
@@ -217,7 +210,7 @@ void muon_energy(
         std::map<int, int> map_id_itruth;
         for (int itruth = 0; itruth < truth_Ntrack; ++itruth) {
             map_id_itruth[truth_id[itruth]] = itruth;
-            h_ndaughter_truth->Fill(truth_daughters->at(itruth).size());
+            // h_ndaughter_truth->Fill(truth_daughters->at(itruth).size());
             if (truth_mother[itruth] != 0) continue;
             if (truth_pdg[itruth] != target_pdg) continue;
             if (truth_startMomentum[itruth][3] < current_max_energy_truth) continue;
@@ -238,7 +231,7 @@ void muon_energy(
         TLorentzVector mom_reco;
         float current_max_energy_reco = 0;
         for (int ireco = 0; ireco < reco_Ntrack; ++ireco) {
-            h_ndaughter_reco->Fill(reco_daughters->at(ireco).size());
+            // h_ndaughter_reco->Fill(reco_daughters->at(ireco).size());
             if (reco_mother[ireco] != 0) continue;
             if (reco_pdg[ireco] != target_pdg) continue;
             if (reco_startMomentum[ireco][3] < current_max_energy_reco) continue;
@@ -250,24 +243,25 @@ void muon_energy(
             // cout << ientry << ", reco: " << mom_reco.E() << ", " << endl;
         }
 
+        // truth leading lepton exists
         if (current_max_energy_truth == 0) continue;
-        ++counter_all;
+        counters["tru_l"]++;
 
-        // h_truth_e_all->Fill(truth_nu_momentum[3]);
-        h_truth_e_all->Fill(target_mom_start_truth.E());
+        // h_truth_e_all->Fill(target_mom_start_truth.E());
 
+        // reco leading lepton exists
         if (current_max_energy_reco == 0) continue;
+        counters["rec_l"]++;
 
         // h_reco_m_truth->Fill((reco_nuvtx - truth_nuvtx).Mag());
         if (!particle_match(pos_reco, target_pos_start_truth, mom_reco, target_mom_start_truth)) continue;
         // if (fabs((reco_nuvtx - truth_nuvtx).Mag()) > 1.0) continue;
-        ++counter_pass;
-        // h_truth_e_match->Fill(truth_nu_momentum[3]);
-        h_truth_e_match->Fill(target_mom_start_truth.E());
-
-        h_reco_m_truth->Fill(mom_reco.E() - target_mom_start_truth.E());
-        // h_reco_m_truth->Fill(pos_reco.X() - target_pos_start_truth.X());
-        // h_reco_v_truth->Fill(target_mom_start_truth.E(), mom_reco.E());
+        counters["match"]++;
+        
+        // now we passed all event selection
+        double E_nu_truth = truth_nu_momentum[3]; // GeV
+        double E_nu_rec = kine_reco_Enu/1000.; // GeV
+        h_nu_diff_vs_nu_rec->Fill(E_nu_truth - E_nu_rec, E_nu_rec);
 
         // find ke_energy_info
         float reco_ke = mom_reco.E()-mom_reco.M();
@@ -279,93 +273,24 @@ void muon_energy(
             }
         }
         if(selected_ke_energy_info==1) {
-            h_reco_v_truth->Fill(target_mom_start_truth.E()-target_mom_start_truth.M(),reco_ke/(target_mom_start_truth.E()-target_mom_start_truth.M()));
-            // h_reco_v_truth->Fill(target_mom_start_truth.E()-target_mom_start_truth.M(),reco_ke);
-            // h_reco_v_truth->Fill(truth_nu_momentum[3],(kine_reco_Enu/1000.)/truth_nu_momentum[3]);
         } else if (selected_ke_energy_info==0) {
-            h_reco_v_truth->Fill(target_mom_start_truth.E()-target_mom_start_truth.M(),reco_ke/(target_mom_start_truth.E()-target_mom_start_truth.M()));
-            // h_reco_v_truth->Fill(target_mom_start_truth.E()-target_mom_start_truth.M(),reco_ke);
-            // h_reco_v_truth->Fill(truth_nu_momentum[3],(kine_reco_Enu/1000.)/truth_nu_momentum[3]);
         }
-        // angle
-        // h_reco_v_truth->Fill(target_mom_start_truth.E(),mom_reco.Theta()-target_mom_start_truth.Theta());
-        // h_reco_v_truth->Fill(target_mom_start_truth.E(), mom_reco.Phi() - target_mom_start_truth.Phi());
-        // pos
-        // h_reco_v_truth->Fill(target_pos_start_truth.Y(), pos_reco.Y());
-
-        // angle
-        // auto dtheta = TMath::ACos(target_mom_start_truth.Vect().Dot(mom_reco.Vect()) /
-        //                           target_mom_start_truth.Vect().Mag() / mom_reco.Vect().Mag());
-        // TLorentzVector target_mom_start_truth_yzx;
-        // dtheta = mom_reco.Phi() - target_mom_start_truth.Phi();
-        // target_mom_start_truth_yzx.SetXYZT(target_mom_start_truth.Z(), target_mom_start_truth.Y(),
-        //                                    target_mom_start_truth.X(), target_mom_start_truth.T());
-        // h_dtheta_theta->Fill(TMath::Pi() / 2 - target_mom_start_truth_yzx.Theta(),
-        //                      TMath::Pi() / 2 - target_mom_start_truth.Theta());
     }
-    cout << "target: truth " << counter_all << "; reco " << counter_pass
-         << "; ratio: " << 100. * counter_pass / counter_all << "%" << endl;
+    for (const auto & [k,v] : counters) {
+        cout << k << ": " << v << endl;
+    }
 
     const int LINE_WIDTH = 2;
-
-    TCanvas *c0 = new TCanvas("c0", "c0");
-    h_truth_e_all->SetLineColor(kBlack);
-    h_truth_e_all->SetLineWidth(LINE_WIDTH);
-    h_truth_e_all->SetTitle(";E^{truth} [GeV]");
-    h_truth_e_all->Draw();
-    h_truth_e_match->SetLineColor(kRed);
-    h_truth_e_match->SetLineWidth(LINE_WIDTH);
-    h_truth_e_match->Draw("same");
-
-    TCanvas *c1 = new TCanvas("c1", "c1");
-    c1->SetGrid();
-    auto pEff = new TEfficiency(*h_truth_e_match, *h_truth_e_all);
-    // pEff->GetXaxis()->SetRangeUser(0,1);
-    pEff->SetMarkerStyle(20);
-    pEff->SetTitle(";E^{truth} [GeV];Efficiency");
-    pEff->Draw("ap");
-    // auto h_truth_e_ratio = (TH1F *) h_truth_e_match->Clone("h_truth_e_ratio");
-    // h_truth_e_ratio->Divide(h_truth_e_all);
-    // h_truth_e_ratio->SetLineColor(kRed);
-    // h_truth_e_ratio->SetLineWidth(LINE_WIDTH);
-    // h_truth_e_ratio->SetTitle(";E^{truth} [GeV];Efficiency");
-    // h_truth_e_ratio->SetStats(0);
-    // h_truth_e_ratio->Draw("");
 
     TCanvas *c2 = new TCanvas("c2", "c2");
     c2->SetGrid();
     c2->SetLogz();
-    // h_reco_v_truth->SetTitle(";Z^{truth} [cm];Z^{reco}-Z^{truth} [cm]");
-    // h_reco_v_truth->SetTitle(";#phi^{truth} [rad];#phi^{reco}-#phi^{truth} [rad]");
-    h_reco_v_truth->SetTitle(";E^{truth} [GeV];reco/true");
-    // h_reco_v_truth->SetTitle(";E^{truth} [GeV];E^{reco} [GeV]");
-    // h_reco_v_truth->SetTitle(";E^{truth} [GeV];#Delta #theta");
-    // h_reco_v_truth->SetTitle(";E^{truth} [GeV];#Delta #phi");
-    // h_reco_v_truth->SetStats(0);
-    h_reco_v_truth->SetMinimum(1);
-    h_reco_v_truth->Draw("colz");
+    h_nu_diff_vs_nu_rec->SetTitle(";E_{\nu}^{rec} [GeV];true-reco");
+    h_nu_diff_vs_nu_rec->SetMinimum(1);
+    h_nu_diff_vs_nu_rec->Draw("colz");
 
     // resolution_hist
-    auto h_reco_v_truth_1 = resolution_hist(h_reco_v_truth);
-    h_reco_v_truth_1->Draw("e,same");
+    // auto h_reco_v_truth_1 = resolution_hist(h_reco_v_truth);
+    // h_reco_v_truth_1->Draw("e,same");
 
-    TCanvas *c3 = new TCanvas("c3", "c3");
-    c3->SetGrid();
-    // h_reco_m_truth->SetTitle(";|Vtx^{reco}-Vtx^{truth}| [cm]");
-    // h_reco_m_truth->SetTitle(";X^{reco}-X^{truth} [cm]");
-    // h_reco_m_truth->SetTitle(";#phi^{reco}-#phi^{truth} [rad]");
-    h_reco_m_truth->SetTitle(";E^{reco}-E^{truth} [GeV]");
-    // h_reco_m_truth->SetStats(0);
-    h_reco_m_truth->Draw();
-
-    // TCanvas *c4 = new TCanvas("c4", "c4");
-    // h_ndaughter_truth->Draw();
-    // TCanvas *c5 = new TCanvas("c5", "c5");
-    // h_ndaughter_reco->Draw();
-
-    TCanvas *c6 = new TCanvas("c6", "c6");
-    c6->SetGrid();
-    h_dtheta_theta->SetTitle("; #theta_{YZ}; #theta_{XY}");
-    // h_reco_m_truth->SetStats(0);
-    h_dtheta_theta->Draw("colz");
 }

@@ -75,7 +75,9 @@ bool particle_match(const TLorentzVector &pa, const TLorentzVector &pb, const TL
 
 void muon_energy(
     const char *input = "checkout_prodgenie_bnb_nu_overlay_run1_PF.root",
-    const char *output = "sel_run1.root")
+    const char *output = "sel_run1.root",
+    const int selection_method = 0 // 0: Dmitrii, 1: mine
+    )
 {
     
     gInterpreter->GenerateDictionary("vector<vector<int> >", "vector");
@@ -181,6 +183,20 @@ void muon_energy(
     TH2F *h_nu_diff_vs_nu_rec = new TH2F("h_diff_v_rec", "h_diff_v_rec", 100, 0, 5, 100, -5, 5);
     TH2F *h_nu_diff_vs_l_diff = new TH2F("h_diff_v_l_diff", "h_diff_v_l_diff", 100, 0, 5, 100, 0, 5);
 
+    // variables Dmitrii used
+    // pf
+    int mc_isnu, mc_nu_pdg, mc_nu_ccnc;
+    float reco_muonMomentum[4];
+    T_PFDump->SetBranchAddress("mc_isnu", &mc_isnu);
+    T_PFDump->SetBranchAddress("mc_nu_pdg", &mc_nu_pdg);
+    T_PFDump->SetBranchAddress("mc_nu_ccnc", &mc_nu_ccnc);
+    T_PFDump->SetBranchAddress("reco_muonMomentum", &reco_muonMomentum);
+    // eval
+    bool match_isFC;
+    T_PFDump->SetBranchAddress("match_isFC", &match_isFC);
+    // bdt
+    float numu_score;
+    T_PFDump->SetBranchAddress("numu_score", &numu_score);
 
     // make a new TTree with the following variables
     // E_l_rec, E_l_rec_cor, E_nu_rec, E_nu_rec_cor, E_l_tru, E_nu_tru, ke_info
@@ -188,6 +204,7 @@ void muon_energy(
     TTree *T_sel = new TTree("T_sel", "T_sel");
     float E_l_rec, E_l_rec_cor, E_nu_rec, E_nu_rec_cor, E_l_tru, E_nu_tru;
     int ke_info;
+    float vtx_diff;
     T_sel->Branch("E_l_rec", &E_l_rec, "E_l_rec/F");
     // T_sel->Branch("E_l_rec_cor", &E_l_rec_cor, "E_l_rec_cor/F");
     T_sel->Branch("E_nu_rec", &E_nu_rec, "E_nu_rec/F");
@@ -195,27 +212,40 @@ void muon_energy(
     T_sel->Branch("E_l_tru", &E_l_tru, "E_l_tru/F");
     T_sel->Branch("E_nu_tru", &E_nu_tru, "E_nu_tru/F");
     T_sel->Branch("ke_info", &ke_info, "ke_info/I");
+    T_sel->Branch("vtx_diff", &vtx_diff, "vtx_diff/F");
+    // add add truth_isFC and match_isFC
+    T_sel->Branch("truth_isFC", &truth_isFC, "truth_isFC/O");
+    T_sel->Branch("match_isFC", &match_isFC, "match_isFC/O");
+    
 
     std::map<std::string, int> counters;
     int nentries = T_PFDump->GetEntries();
-    // nentries = 10000;
+    // nentries = 1000;
     for (int ientry = 0; ientry < nentries; ++ientry) {
         T_PFDump->GetEntry(ientry);
         if (ientry % 1000 == 0) cout << "processing: " << (double)ientry / nentries * 100 << "%" << endl;
         counters["all"]++;
 
-        // event selection
-        if (numu_cc_flag < 0 || stm_clusterlength < 15) continue;  // generic nu selection
-        if (!truth_isCC) continue;
-        if (truth_isFC!=true) continue; // FV cut
-        // if (!is_in_fv(truth_corr_nuvtxX, truth_corr_nuvtxY, truth_corr_nuvtxZ)) continue; // alternative FV
+        if (selection_method == 0) {
+            if (mc_isnu != 1 || abs(mc_nu_pdg) != 14 || mc_nu_ccnc != 0) continue;
+            if (numu_cc_flag < 0 || stm_clusterlength < 15 || numu_score < 0.9 || match_isFC!= 1) continue;
+        } else if (selection_method == 1) {
+            if (numu_cc_flag < 0 || stm_clusterlength < 15) continue;  // generic nu selection
+            if (!truth_isCC) continue;
+            if (truth_isFC!=true) continue; // FV cut
+            // if (!is_in_fv(truth_corr_nuvtxX, truth_corr_nuvtxY, truth_corr_nuvtxZ)) continue; // alternative FV
+        } else {
+            cout << "selection_method not defined" << endl;
+            return;
+        }
         counters["event"]++;
 
         // vertex selection
         TVector3 truth_nuvtx(truth_corr_nuvtxX, truth_corr_nuvtxY, truth_corr_nuvtxZ);
         TVector3 reco_nuvtx(reco_nuvtxX, reco_nuvtxY, reco_nuvtxZ);
-        if ((reco_nuvtx - truth_nuvtx).Mag() > 1.0) continue;
-        counters["vertex"]++;
+        // if ((reco_nuvtx - truth_nuvtx).Mag() > 1.0) continue;
+        // counters["vertex"]++;
+        vtx_diff = (reco_nuvtx - truth_nuvtx).Mag();
 
         TLorentzVector target_pos_start_truth;
         TLorentzVector target_pos_end_truth;

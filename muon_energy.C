@@ -74,9 +74,10 @@ bool particle_match(const TLorentzVector &pa, const TLorentzVector &pb, const TL
 }
 
 void muon_energy(
-    // const char *input = "data/nue_overlay_run2.root"
-    const char *input = "checkout_prodgenie_bnb_nu_overlay_run1_PF.root")
+    const char *input = "checkout_prodgenie_bnb_nu_overlay_run1_PF.root",
+    const char *output = "sel_run1.root")
 {
+    
     gInterpreter->GenerateDictionary("vector<vector<int> >", "vector");
 
     auto *tf = TFile::Open(input, "read");
@@ -180,9 +181,24 @@ void muon_energy(
     TH2F *h_nu_diff_vs_nu_rec = new TH2F("h_diff_v_rec", "h_diff_v_rec", 100, 0, 5, 100, -5, 5);
     TH2F *h_nu_diff_vs_l_diff = new TH2F("h_diff_v_l_diff", "h_diff_v_l_diff", 100, 0, 5, 100, 0, 5);
 
+
+    // make a new TTree with the following variables
+    // E_l_rec, E_l_rec_cor, E_nu_rec, E_nu_rec_cor, E_l_tru, E_nu_tru, ke_info
+    TFile *fout = new TFile(output, "recreate");
+    TTree *T_sel = new TTree("T_sel", "T_sel");
+    float E_l_rec, E_l_rec_cor, E_nu_rec, E_nu_rec_cor, E_l_tru, E_nu_tru;
+    int ke_info;
+    T_sel->Branch("E_l_rec", &E_l_rec, "E_l_rec/F");
+    // T_sel->Branch("E_l_rec_cor", &E_l_rec_cor, "E_l_rec_cor/F");
+    T_sel->Branch("E_nu_rec", &E_nu_rec, "E_nu_rec/F");
+    // T_sel->Branch("E_nu_rec_cor", &E_nu_rec_cor, "E_nu_rec_cor/F");
+    T_sel->Branch("E_l_tru", &E_l_tru, "E_l_tru/F");
+    T_sel->Branch("E_nu_tru", &E_nu_tru, "E_nu_tru/F");
+    T_sel->Branch("ke_info", &ke_info, "ke_info/I");
+
     std::map<std::string, int> counters;
     int nentries = T_PFDump->GetEntries();
-    nentries = 10000;
+    // nentries = 10000;
     for (int ientry = 0; ientry < nentries; ++ientry) {
         T_PFDump->GetEntry(ientry);
         if (ientry % 1000 == 0) cout << "processing: " << (double)ientry / nentries * 100 << "%" << endl;
@@ -257,11 +273,6 @@ void muon_energy(
         if (!particle_match(pos_reco, target_pos_start_truth, mom_reco, target_mom_start_truth)) continue;
         // if (fabs((reco_nuvtx - truth_nuvtx).Mag()) > 1.0) continue;
         counters["match"]++;
-        
-        // now we passed all event selection
-        double E_nu_truth = truth_nu_momentum[3]; // GeV
-        double E_nu_rec = kine_reco_Enu/1000.; // GeV
-        h_nu_diff_vs_nu_rec->Fill(E_nu_truth - E_nu_rec, E_nu_rec);
 
         // find ke_energy_info
         float reco_ke = mom_reco.E()-mom_reco.M();
@@ -272,25 +283,36 @@ void muon_energy(
                 break;
             }
         }
-        if(selected_ke_energy_info==1) {
-        } else if (selected_ke_energy_info==0) {
-        }
+
+        // now we passed all event selection
+        E_nu_tru = truth_nu_momentum[3]; // GeV
+        E_nu_rec = kine_reco_Enu/1000.; // GeV
+        E_l_rec = mom_reco.E();
+        E_l_tru = target_mom_start_truth.E();
+        ke_info = selected_ke_energy_info;
+        T_sel->Fill();
+
+        h_nu_diff_vs_nu_rec->Fill(E_nu_tru - E_nu_rec, E_nu_rec);
     }
+    fout->cd();
+    T_sel->Write();
+    fout->Close();
+
     for (const auto & [k,v] : counters) {
         cout << k << ": " << v << endl;
     }
 
-    const int LINE_WIDTH = 2;
+    // const int LINE_WIDTH = 2;
 
-    TCanvas *c2 = new TCanvas("c2", "c2");
-    c2->SetGrid();
-    c2->SetLogz();
-    h_nu_diff_vs_nu_rec->SetTitle(";E_{\nu}^{rec} [GeV];true-reco");
-    h_nu_diff_vs_nu_rec->SetMinimum(1);
-    h_nu_diff_vs_nu_rec->Draw("colz");
+    // TCanvas *c2 = new TCanvas("c2", "c2");
+    // c2->SetGrid();
+    // c2->SetLogz();
+    // h_nu_diff_vs_nu_rec->SetTitle(";E_{\nu}^{rec} [GeV];true-reco");
+    // h_nu_diff_vs_nu_rec->SetMinimum(1);
+    // h_nu_diff_vs_nu_rec->Draw("colz");
 
-    // resolution_hist
-    // auto h_reco_v_truth_1 = resolution_hist(h_reco_v_truth);
-    // h_reco_v_truth_1->Draw("e,same");
+    // // resolution_hist
+    // auto h_nu_diff_vs_nu_rec_res = resolution_hist(h_nu_diff_vs_nu_rec);
+    // h_nu_diff_vs_nu_rec_res->Draw("e,same");
 
 }

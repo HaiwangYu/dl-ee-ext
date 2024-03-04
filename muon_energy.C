@@ -220,7 +220,7 @@ void muon_energy(
 
     std::map<std::string, int> counters;
     int nentries = T_PFDump->GetEntries();
-    // nentries = 1000;
+    // nentries = 10000;
     for (int ientry = 0; ientry < nentries; ++ientry) {
         T_PFDump->GetEntry(ientry);
         if (ientry % 1000 == 0) cout << "processing: " << (double)ientry / nentries * 100 << "%" << endl;
@@ -228,11 +228,12 @@ void muon_energy(
 
         if (selection_method == 0) {
             if (mc_isnu != 1 || abs(mc_nu_pdg) != 14 || mc_nu_ccnc != 0) continue;
-            if (numu_cc_flag < 0 || stm_clusterlength < 15 || numu_score < 0.9 || match_isFC!= 1) continue;
+            if (numu_cc_flag < 0 || stm_clusterlength < 15 || numu_score < 0.9) continue;
+            // if (match_isFC!= 1) continue;
         } else if (selection_method == 1) {
             if (numu_cc_flag < 0 || stm_clusterlength < 15) continue;  // generic nu selection
             if (!truth_isCC) continue;
-            if (truth_isFC!=true) continue; // FV cut
+            // if (truth_isFC!=true) continue;
             // if (!is_in_fv(truth_corr_nuvtxX, truth_corr_nuvtxY, truth_corr_nuvtxZ)) continue; // alternative FV
         } else {
             cout << "selection_method not defined" << endl;

@@ -202,13 +202,11 @@ void muon_energy(
     // E_l_rec, E_l_rec_cor, E_nu_rec, E_nu_rec_cor, E_l_tru, E_nu_tru, ke_info
     TFile *fout = new TFile(output, "recreate");
     TTree *T_sel = new TTree("T_sel", "T_sel");
-    float E_l_rec, E_l_rec_cor, E_nu_rec, E_nu_rec_cor, E_l_tru, E_nu_tru;
+    float E_l_rec, E_nu_rec, E_l_tru, E_nu_tru;
     int ke_info;
     float vtx_diff;
     T_sel->Branch("E_l_rec", &E_l_rec, "E_l_rec/F");
-    // T_sel->Branch("E_l_rec_cor", &E_l_rec_cor, "E_l_rec_cor/F");
     T_sel->Branch("E_nu_rec", &E_nu_rec, "E_nu_rec/F");
-    // T_sel->Branch("E_nu_rec_cor", &E_nu_rec_cor, "E_nu_rec_cor/F");
     T_sel->Branch("E_l_tru", &E_l_tru, "E_l_tru/F");
     T_sel->Branch("E_nu_tru", &E_nu_tru, "E_nu_tru/F");
     T_sel->Branch("ke_info", &ke_info, "ke_info/I");

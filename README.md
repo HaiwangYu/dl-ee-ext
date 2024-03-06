@@ -12,7 +12,10 @@ T_sel->Draw("(E_nu_rec-E_nu_tru)/E_nu_tru:(E_l_rec-E_l_tru)/E_l_tru>>h(100,-1,1,
 ```
 
 ```bash
+T_corr->Draw("(E_nu_rec-E_nu_tru)/E_nu_tru>>h(100,-1,1)","match_isFC==1")
 T_corr->Draw("(E_nu_rec_corr-E_nu_tru)/E_nu_tru>>h(100,-1,1)","match_isFC==1")
+
+
 T_corr->Draw("(E_nu_rec_corr-E_nu_tru)/E_nu_tru:E_nu_tru>>h(50,0,5,100,-1,1)","match_isFC==1","colz")
 
 T_corr->Draw("E_nu_tru-E_nu_rec:E_nu_rec>>h(50,0,5,100,-5,5)","match_isFC==1","colz")

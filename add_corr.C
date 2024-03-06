@@ -26,6 +26,27 @@ TH1 *resolution_hist(TH2 *in)
     return out;
 }
 
+float rms(TH1 *h)
+{
+    float sum = 0;
+    float nentries_valid = 0;
+    for (int i = 1; i <= h->GetNbinsX(); ++i) {
+        sum += h->GetBinCenter(i) * h->GetBinCenter(i) * h->GetBinContent(i);
+        nentries_valid += h->GetBinContent(i);
+    }
+    return sqrt(sum / nentries_valid);
+}
+
+float rms(const std::vector<float> &v)
+{
+    float sum = 0;
+    for (auto x : v) {
+        // if (fabs(x) > 1) continue;
+        sum += x * x;
+    }
+    return sqrt(sum / v.size());
+}
+
 void add_corr(
     const char *input = "sel.root",
     const char *output = "corr.root") {
@@ -81,6 +102,8 @@ void add_corr(
     auto h_nu_diff_vs_nu_rec_res = resolution_hist(h_nu_diff_vs_nu_rec);
     // h_nu_diff_vs_nu_rec_res->Draw("e,same");
 
+    std::vector<float> rms_rec;
+    std::vector<float> rms_corr;
     for (int ientry = 0; ientry < nentries; ++ientry) {
         T_sel->GetEntry(ientry);
         if (match_isFC == false) continue;
@@ -88,7 +111,11 @@ void add_corr(
         const float corr = h_nu_diff_vs_nu_rec_res->GetBinContent(ibin);
         E_nu_rec_corr = E_nu_rec + corr;
         T_corr->Fill();
+        rms_rec.push_back((E_nu_tru - E_nu_rec) / E_nu_tru);
+        rms_corr.push_back((E_nu_tru - E_nu_rec_corr) / E_nu_tru);
     }
+    std::cout << "rms_rec: " << rms(rms_rec) << std::endl;
+    std::cout << "rms_corr: " << rms(rms_corr) << std::endl;
     fout->cd();
     T_corr->Write();
     h_nu_diff_vs_nu_rec->Write();

@@ -1,5 +1,6 @@
 WireCell_checkout_PF
 *.root
+*.root.1
 .vscode
 AutoDict*
 *.d
